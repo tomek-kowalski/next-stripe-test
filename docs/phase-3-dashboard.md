@@ -133,3 +133,45 @@ separate from the **simulated** side (browser clock moved past `capture_before`,
 | `GET /api/lab/connect/accounts/[id]/balance` | seller and platform balance (lab account only) |
 
 Removed: `POST /api/lab/connect/accounts` (account creation from the dashboard is out of scope; the existing lab account is reused).
+
+---
+
+## Update: guided scenarios for non-technical users (2026-10-23)
+
+### Root cause of `Utwórz PaymentIntent: Nie znaleziono [HTTP 404, forbidden]`
+
+The error came from the lab's own guard (`src/lib/lab/guard.ts`), not from Stripe or routing. The dashboard was used
+on the Vercel production deployment of this repository (project `next-stripe-test`, deployed from `main`), where
+`NODE_ENV=production`, and the guard deliberately refuses every lab API call outside `development`/`test` (and
+non-localhost hosts). Locally (`npm run dev`, `http://localhost:3000`) all flows work. The dashboard now explains
+this in Polish instead of showing the raw error.
+
+### Public test mode on Vercel (approved by the owner for the temporary Sandbox)
+
+On a Vercel deployment (`VERCEL=1`) the lab API is now open to testers **without login**. Set `LAB_PUBLIC_ACCESS=0` in
+the Vercel environment variables (and redeploy) to lock it again; without `VERCEL`, production stays locked (404) as before.
+Still enforced in public mode: Sandbox (test-mode) keys only, money only to the tagged lab seller account, same-origin JSON
+for every mutation, and at most **500 zł per payment** (`PUBLIC_MAX_AMOUNT`, checked before Stripe is called). Accepted
+risk: anyone with the URL (or a script) can create Sandbox payments and transfers; no real money is involved.
+
+Verified on a local production build (`next build` + `next start` with `VERCEL=1`): config reports `publicMode=true`,
+`maxAmount=50000`; 600 zł refused (422); 50 zł hold created and confirmed (`pi_3UTjwxKKgVb6y81Y1iNlYj0N`, req_gOxwwk037l69q7)
+and released (req_AP1JWVT6K3G7nO); cross-origin cancel refused (403); payment to a non-lab seller refused (403). The
+`LAB_PUBLIC_ACCESS=0` lock is covered by unit tests only (a running-server check was not completed).
+
+### New interface (Polish)
+
+Tabs: **1. Blokada kaucji · 2. Pobranie kaucji · 3. Podział płatności · 4. Przekazanie pieniędzy · 5. Zwrot pieniędzy ·
+6. Wygaśnięcie blokady · 7. Konta sprzedawców.** Each scenario shows what the user is about to do and what happens to
+the customer's, seller's and platform's money; a guided step list whose completion is derived from the real Stripe
+state; amounts in złoty (converted to integer grosze); sensible defaults (50 zł, 10% commission, 45 zł transfer).
+
+After every operation a result card shows success/failure and what Stripe executed, a plain-language account of the
+money built from real balance transactions, the status, a money-flow diagram (Klient → Platforma → Stripe →
+Sprzedawca; a hold is a lock on the card, never an arrow), next actions, and a timeline from Stripe Events. Stripe
+terminology, IDs, ledgers, raw responses, the test-card choice, PaymentIntent lookup and all technical controls are in
+expandable "szczegóły techniczne" / "Tryb zaawansowany" sections. The expiry tab keeps the labeled simulation.
+
+Verification: type check, lint, production build; unit tests 22/22 (including złoty parsing and the money reading checked
+against the real Phase 3 Sandbox payments); the page renders on `next dev`. The guided UI was **not** clicked through by
+browser automation; all API calls it makes are the ones verified by the Phase 3 Sandbox tests. Server code is unchanged.

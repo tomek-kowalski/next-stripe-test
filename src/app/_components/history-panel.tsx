@@ -4,6 +4,8 @@ export type HistoryEntry = {
   id: number;
   at: string;
   label: string;
+  /** Server-side operation name (create, capture, refund, transfer, …) when the API returned one. */
+  operation: string | null;
   httpStatus: number;
   ok: boolean;
   message: string;
