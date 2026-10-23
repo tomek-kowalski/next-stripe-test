@@ -24,3 +24,28 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@layer components {
+  .btn {
+    @apply rounded border border-zinc-400 px-2 py-1 hover:bg-zinc-100 disabled:cursor-not-allowed disabled:opacity-40 dark:hover:bg-zinc-800;
+  }
+  .panel {
+    @apply rounded border border-zinc-300 p-3 dark:border-zinc-700;
+  }
+  .table {
+    @apply w-full border-collapse text-xs;
+  }
+  .table th,
+  .table td {
+    @apply border-b border-zinc-200 px-1.5 py-1 text-left align-top dark:border-zinc-800;
+  }
+  .badge {
+    @apply inline-block rounded border border-zinc-400 px-1.5 text-xs;
+  }
+  .badge-ok {
+    @apply border-green-600 text-green-700 dark:text-green-400;
+  }
+  .badge-warn {
+    @apply border-amber-500 text-amber-700 dark:text-amber-400;
+  }
+}
