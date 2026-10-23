@@ -8,6 +8,7 @@ import type {
   ConfirmPaymentIntentBody,
   CreatePaymentIntentBody,
 } from "./schemas";
+import { isPublicMode, PUBLIC_MAX_AMOUNT } from "./guard";
 import {
   assertCancelable,
   assertCapturable,
@@ -95,6 +96,9 @@ export function toFailure(operation: OperationName, idempotencyKey: string | nul
 export function createPaymentIntent(stripe: Stripe, body: CreatePaymentIntentBody): Promise<OperationResult> {
   const idempotencyKey = body.idempotencyKey ?? randomUUID();
   return execute("create", idempotencyKey, async () => {
+    if (isPublicMode() && body.amount > PUBLIC_MAX_AMOUNT) {
+      throw new LabRuleError(`W trybie testów publicznych maksymalna kwota płatności to ${PUBLIC_MAX_AMOUNT / 100} zł.`, 422);
+    }
     // Money may only ever be routed to the tagged, ready lab account.
     if (body.accountId) await requireReadyLabAccount(stripe, body.accountId);
     const scenario = body.scenario ?? "manual";

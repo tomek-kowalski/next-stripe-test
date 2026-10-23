@@ -49,5 +49,7 @@ export type LabConfig =
       sdkVersion: string;
       account: { id: string; country: string | null; default_currency: string | null; display_name: string | null } | null;
       accountError: string | null;
+      publicMode: boolean;
+      maxAmount: number;
     }
   | { ok: false; message: string; apiVersion: string; sdkVersion: string };

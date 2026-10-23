@@ -35,4 +35,5 @@ mechanisms for a C2C platform. **Stripe Sandbox only. Local development only.** 
 - Phase 2 (Stripe Connect): 6 scenarios (7 runs) passed in Sandbox on 2026-10-23 on lab account `acct_1UTi5VKKgVS24coW`. See `docs/phase-2-stripe-connect.md`.
 - Phase 3 (Polish demonstration dashboard): implemented; server flows verified in Sandbox on 2026-10-23 (6/6). See `docs/phase-3-dashboard.md`.
   The UI was not exercised by browser automation (Playwright skipped by decision).
+- Update (2026-10-23): guided Polish scenario UI (7 tabs, money-flow diagram, złoty inputs). On Vercel the lab runs in public test mode (no login, Sandbox only, max 500 zł; lock with `LAB_PUBLIC_ACCESS=0`); see `docs/phase-3-dashboard.md`.
 - Phases 4–5: not started.
