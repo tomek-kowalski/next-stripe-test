@@ -44,7 +44,23 @@ export type PaymentIntentSummary = {
     application_fee_amount: number | null;
     transfer_group: string | null;
   };
+  /** Booking this payment belongs to (from metadata), if any. */
+  booking: BookingInfo | null;
 };
+
+export type BookingInfo = { id: string; scenario: string | null; item: string | null; customer: string | null; start: string | null; end: string | null };
+
+export function bookingOf(metadata: Stripe.Metadata | null | undefined): BookingInfo | null {
+  if (!metadata?.booking_id) return null;
+  return {
+    id: metadata.booking_id,
+    scenario: metadata.booking_scenario ?? null,
+    item: metadata.booking_item ?? null,
+    customer: metadata.booking_customer ?? null,
+    start: metadata.booking_start ?? null,
+    end: metadata.booking_end ?? null,
+  };
+}
 
 function iso(unixSeconds: number): string {
   return new Date(unixSeconds * 1000).toISOString();
@@ -102,5 +118,6 @@ export function summarizePaymentIntent(pi: Stripe.PaymentIntent): PaymentIntentS
       application_fee_amount: pi.application_fee_amount ?? null,
       transfer_group: pi.transfer_group ?? null,
     },
+    booking: bookingOf(pi.metadata),
   };
 }

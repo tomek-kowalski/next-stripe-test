@@ -16,7 +16,7 @@ mechanisms for a C2C platform. **Stripe Sandbox only. Local development only.** 
 | --- | --- |
 | `npm run typecheck` | `tsc --noEmit` (run `npx next typegen` first on a clean checkout) |
 | `npm run test:unit` | Guard, validation and route tests (no Stripe calls) |
-| `npm run test:sandbox` | Runs the Phase 1–3 scenarios against Stripe Sandbox. Skipped if no test key is set |
+| `npm run test:sandbox` | Runs the Phase 1–3 and A/B/C scenarios against Stripe Sandbox. Skipped if no test key is set |
 | `npm test` | Both |
 
 ## Layout
@@ -36,4 +36,5 @@ mechanisms for a C2C platform. **Stripe Sandbox only. Local development only.** 
 - Phase 3 (Polish demonstration dashboard): implemented; server flows verified in Sandbox on 2026-10-23 (6/6). See `docs/phase-3-dashboard.md`.
   The UI was not exercised by browser automation (Playwright skipped by decision).
 - Update (2026-10-23): guided Polish scenario UI (7 tabs, money-flow diagram, złoty inputs). On Vercel the lab runs in public test mode (no login, Sandbox only, max 500 zł; lock with `LAB_PUBLIC_ACCESS=0`); see `docs/phase-3-dashboard.md`.
+- Scenarios A/B/C on a shared booking (immediate deposit, authorization, delayed transfer): verified in Sandbox; see `docs/scenarios-abc.md`.
 - Phases 4–5: not started.

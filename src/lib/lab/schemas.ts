@@ -35,8 +35,28 @@ export const IdempotencyKeySchema = z.uuid();
 export const ChargeModelSchema = z.enum(["platform", "destination", "separate"]);
 export type ChargeModel = z.infer<typeof ChargeModelSchema>;
 
+/**
+ * Shared booking for scenarios A/B/C. There is no database: the booking lives only as
+ * metadata on the Stripe objects of each scenario run (PaymentIntent, Transfer).
+ */
+export const BookingIdSchema = z.string().regex(/^bk_[a-z0-9]{12}$/, "Oczekiwano identyfikatora rezerwacji (bk_…).");
+export const ScenarioLetterSchema = z.enum(["A", "B", "C"]);
+export type ScenarioLetter = z.infer<typeof ScenarioLetterSchema>;
+export const BookingSchema = z
+  .strictObject({
+    id: BookingIdSchema,
+    scenario: ScenarioLetterSchema,
+    item: z.string().trim().min(1, { error: "Podaj przedmiot rezerwacji." }).max(60),
+    customer: z.string().trim().min(1, { error: "Podaj klienta." }).max(60),
+    start: z.iso.date({ error: "Nieprawidłowa data rozpoczęcia." }),
+    end: z.iso.date({ error: "Nieprawidłowa data zakończenia." }),
+  })
+  .refine((b) => b.end >= b.start, { path: ["end"], message: "Data zakończenia nie może być wcześniejsza niż data rozpoczęcia." });
+export type Booking = z.infer<typeof BookingSchema>;
+
 export const CreatePaymentIntentBodySchema = z
   .strictObject({
+    booking: BookingSchema.optional(),
     amount: AmountSchema,
     currency: CurrencySchema.default(LAB_CURRENCY),
     scenario: z.string().regex(/^[a-z0-9-]{1,40}$/).optional(),
