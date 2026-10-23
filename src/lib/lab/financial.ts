@@ -117,7 +117,7 @@ export async function createTransfer(stripe: Stripe, body: TransferBody): Promis
       // Funds the transfer from this charge, not from the platform's available balance.
       source_transaction: charge.id,
       transfer_group: pi.transfer_group,
-      metadata: { ...TAG, payment_intent: pi.id },
+      metadata: { ...TAG, payment_intent: pi.id, ...(pi.metadata?.booking_id && { booking_id: pi.metadata.booking_id }) },
     },
     { idempotencyKey: body.idempotencyKey },
   );

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { TestPaymentMethod } from "@/lib/lab/schemas";
+import type { ScenarioLetter, TestPaymentMethod } from "@/lib/lab/schemas";
 import type { LabConfig } from "@/lib/lab/types";
 import type { AccountsResponse, ApiError, ApiResult, BalanceResponse, PaymentDetails } from "./api";
 import { api, errorText, STATUS_PL } from "./api";
@@ -10,14 +10,17 @@ import { HistoryPanel, type HistoryEntry } from "./history-panel";
 import { PaymentWorkspace, type Model } from "./payment-workspace";
 import {
   AccountsScenario,
-  CaptureScenario,
+  BookingPanel,
+  ComparePanel,
   ExpiryScenario,
-  HoldScenario,
   RefundScenario,
+  ScenarioA,
+  ScenarioB,
+  ScenarioC,
   ScenarioResult,
-  SplitScenario,
   TABS,
-  TransferScenario,
+  type BookingDraft,
+  type Runs,
   type ScenarioCtx,
   type TabId,
 } from "./scenarios";
@@ -25,6 +28,7 @@ import {
 const PI_RE = /^pi_[A-Za-z0-9]+$/;
 const DEFAULT_MAX_AMOUNT = 1_000_000;
 let nextHistoryId = 1;
+const INITIAL_BOOKING: BookingDraft = { id: null, item: "", customer: "", start: "", end: "", amount: 10_000, feePercent: "10" };
 
 type AccountsData = { accounts: AccountsResponse | null; error: string | null; balance: BalanceResponse | null };
 
@@ -44,7 +48,9 @@ function availabilityHint(r: { httpStatus: number; body: ApiError }) {
 }
 
 export function LabDashboard() {
-  const [tab, setTab] = useState<TabId>("hold");
+  const [tab, setTab] = useState<TabId>("booking");
+  const [booking, setBooking] = useState<BookingDraft>(INITIAL_BOOKING);
+  const [runs, setRuns] = useState<Runs>({});
   const [config, setConfig] = useState<LabConfig | null>(null);
   const [unavailable, setUnavailable] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<AccountsResponse | null>(null);
@@ -136,7 +142,27 @@ export function LabDashboard() {
     return r;
   }, [loadAccounts]);
 
-  const ctx: ScenarioCtx = { details, busy, labAccount, maxAmount, card, perform, show, go: setTab, clear };
+  const setRun = useCallback((letter: ScenarioLetter, id: string | null) => {
+    setRuns((r) => {
+      const next = { ...r };
+      if (id) next[letter] = id;
+      else delete next[letter];
+      return next;
+    });
+  }, []);
+
+  /** Switching to a scenario tab shows that scenario's own payment for the current booking. */
+  const go = (next: TabId) => {
+    setTab(next);
+    const letter = next === "expiry" ? "B" : next === "A" || next === "B" || next === "C" ? next : null;
+    if (!letter) return;
+    const id = runs[letter];
+    if (id) show(id);
+    else if (next !== "expiry") clear();
+  };
+
+  const ctx: ScenarioCtx = { details, busy, labAccount, maxAmount, card, booking, setBooking, runs, setRun, perform, show, go, clear };
+  const showResult = tab === "A" || tab === "B" || tab === "C" || tab === "refund" || tab === "expiry";
   const lastEntry = history[0] ?? null;
 
   return (
@@ -147,7 +173,7 @@ export function LabDashboard() {
       <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-zinc-300 pb-2 dark:border-zinc-700">
         <div>
           <h1 className="text-lg font-bold">Laboratorium płatności: kaucje, prowizje i przelewy</h1>
-          <p className="text-zinc-500">Wybierz scenariusz i przejdź go krok po kroku. Każda operacja jest naprawdę wykonywana w Stripe Sandbox.</p>
+          <p className="text-zinc-500">Jedna rezerwacja, trzy sposoby rozliczenia kaucji (A, B, C) i ich porównanie. Każda operacja jest naprawdę wykonywana w Stripe Sandbox.</p>
         </div>
         <div className="text-xs text-zinc-500" data-testid="config">
           {config?.ok && <>Stripe Sandbox · API {config.apiVersion}</>}
@@ -160,21 +186,22 @@ export function LabDashboard() {
 
       <nav className="flex flex-wrap gap-1 border-b border-zinc-300 dark:border-zinc-700" aria-label="Scenariusze">
         {TABS.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={`rounded-t px-3 py-1.5 ${tab === t.id ? "bg-zinc-200 font-bold dark:bg-zinc-800" : "hover:bg-zinc-100 dark:hover:bg-zinc-900"}`}>
+          <button key={t.id} onClick={() => go(t.id)} className={`rounded-t px-3 py-1.5 ${tab === t.id ? "bg-zinc-200 font-bold dark:bg-zinc-800" : "hover:bg-zinc-100 dark:hover:bg-zinc-900"}`}>
             {t.label}
           </button>
         ))}
       </nav>
 
-      {tab === "hold" && <HoldScenario ctx={ctx} />}
-      {tab === "capture" && <CaptureScenario ctx={ctx} />}
-      {tab === "split" && <SplitScenario ctx={ctx} />}
-      {tab === "transfer" && <TransferScenario ctx={ctx} />}
+      {tab === "booking" && <BookingPanel ctx={ctx} />}
+      {tab === "A" && <ScenarioA ctx={ctx} />}
+      {tab === "B" && <ScenarioB ctx={ctx} />}
+      {tab === "C" && <ScenarioC ctx={ctx} />}
+      {tab === "compare" && <ComparePanel ctx={ctx} />}
       {tab === "refund" && <RefundScenario ctx={ctx} />}
       {tab === "expiry" && <ExpiryScenario ctx={ctx} />}
       {tab === "accounts" && <AccountsScenario accounts={accounts} accountsError={accountsError} balance={balance} onRefresh={() => void loadAccounts()} />}
 
-      {tab !== "accounts" && <ScenarioResult ctx={ctx} loading={detailsLoading} lastEntry={lastEntry} />}
+      {showResult && <ScenarioResult ctx={ctx} loading={detailsLoading} lastEntry={lastEntry} />}
 
       <details className="panel">
         <summary className="cursor-pointer font-bold">Jak to działa — architektura i ograniczenia</summary>
