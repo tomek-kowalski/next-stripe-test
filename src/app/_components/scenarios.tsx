@@ -5,6 +5,7 @@ import type { Booking, ScenarioLetter, TestPaymentMethod } from "@/lib/lab/schem
 import type { OperationResult } from "@/lib/lab/types";
 import type { BookingListItem } from "@/lib/lab/bookings";
 import { AccountsPanel } from "./accounts-panel";
+import { bookingDatesError, resolveBookingDates } from "./booking-dates";
 import type { AccountRow, AccountsResponse, ApiResult, BalanceResponse, PaymentDetails } from "./api";
 import { api, dateTime, newKey, pln, STATUS_PL } from "./api";
 import { ExpirySimulation } from "./expiry-simulation";
@@ -59,7 +60,6 @@ export type ScenarioCtx = {
 
 // ---------- booking helpers ----------
 
-const isoDay = (d: Date) => d.toISOString().slice(0, 10);
 export const newBookingId = () => `bk_${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
 
 export function feeOf(b: BookingDraft): number | null {
@@ -70,15 +70,13 @@ export function feeOf(b: BookingDraft): number | null {
 
 /** Resolves defaults (id, dates) at the moment of the first payment, so render stays deterministic. */
 function resolveBooking(ctx: ScenarioCtx, scenario: ScenarioLetter): Booking {
-  const today = new Date();
   const b = ctx.booking;
   const resolved = {
     id: b.id ?? newBookingId(),
     scenario,
     item: b.item.trim() || "Wiertarka udarowa",
     customer: b.customer.trim() || "Klient testowy",
-    start: b.start || isoDay(today),
-    end: b.end || isoDay(new Date(today.getTime() + 3 * 864e5)),
+    ...resolveBookingDates(b.start, b.end, new Date()),
   };
   if (resolved.id !== b.id || resolved.start !== b.start || resolved.end !== b.end) {
     ctx.setBooking({ ...b, id: resolved.id, start: resolved.start, end: resolved.end });
@@ -167,6 +165,7 @@ function startReason(ctx: ScenarioCtx): string | null {
   if (b.amount === null) return "podaj kwotę w zakładce Rezerwacja";
   if (b.amount > ctx.maxAmount) return `maksymalnie ${pln(ctx.maxAmount)}`;
   if (feeOf(b) === null) return "prowizja musi być od 0 do 99%";
+  if (bookingDatesError(b.start, b.end)) return "data zakończenia rezerwacji jest wcześniejsza niż data rozpoczęcia (zakładka Rezerwacja)";
   if (!ctx.labAccount) return "brak konta sprzedawcy laboratorium";
   if (!ctx.labAccount.readiness?.ready) return "konto sprzedawcy laboratorium nie jest gotowe (zakładka Konta sprzedawców)";
   return null;
@@ -315,9 +314,13 @@ export function BookingPanel({ ctx }: { ctx: ScenarioCtx }) {
             <input type="date" value={b.start} onChange={(e) => set({ start: e.target.value })} className="mt-1 block w-full rounded border px-2 py-1" />
           </label>
           <label className="block"><span className="font-bold">Do</span>
-            <input type="date" value={b.end} onChange={(e) => set({ end: e.target.value })} className="mt-1 block w-full rounded border px-2 py-1" />
+            <input type="date" value={b.end} min={b.start || undefined} onChange={(e) => set({ end: e.target.value })} className={`mt-1 block w-full rounded border px-2 py-1 ${bookingDatesError(b.start, b.end) ? "border-red-500" : ""}`} />
           </label>
-          <span className="col-span-2 text-xs text-zinc-500">Puste daty: dziś – za 3 dni.</span>
+          {bookingDatesError(b.start, b.end) ? (
+            <span className="col-span-2 text-xs text-red-600" data-testid="booking-dates-error">{bookingDatesError(b.start, b.end)}</span>
+          ) : (
+            <span className="col-span-2 text-xs text-zinc-500">Puste daty: od dziś; koniec domyślnie 3 dni po rozpoczęciu.</span>
+          )}
         </div>
         <ZlInput label="Kwota (kaucja / płatność)" value={b.amount} onChange={(amount) => set({ amount })} help="Domyślnie 100 zł" testId="booking-amount" />
         <label className="block"><span className="font-bold">Prowizja platformy</span>
